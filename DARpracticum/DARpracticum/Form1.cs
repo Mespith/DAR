@@ -12,9 +12,21 @@ namespace DARpracticum
 {
     public partial class Form1 : Form
     {
+        Database database;
+
         public Form1()
         {
             InitializeComponent();
+        }
+
+        private void createButton_Click(object sender, EventArgs e)
+        {
+            database = new Database();
+        }
+
+        private void fillButton_Click(object sender, EventArgs e)
+        {
+            database.FillDB();
         }
     }
 }

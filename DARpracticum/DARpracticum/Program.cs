@@ -15,11 +15,12 @@ namespace DARpracticum
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            SQLiteConnection.CreateFile("metadatadb.sqlite");
+            dbConnection = new SQLiteConnection("Data Source=metadatadb.sqlite;Version=3;");
+
             Application.Run(new Form1());
 
-            SQLiteConnection.CreateFile("TestDatabase.sqlite");
-
-            dbConnection = new SQLiteConnection("Data Source=TestDatabase.sqlite;Version=3;");
         }
     }
 }
