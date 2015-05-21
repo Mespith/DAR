@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DARpracticum
 {
@@ -37,6 +33,12 @@ namespace DARpracticum
                 line = reader.ReadLine();
             }
             Program.dbConnection.Close();
+        }
+
+        public void FillMetaDatabase()
+        {
+
+            // log(n/F(t))
         }
     }
 }
