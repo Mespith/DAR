@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,6 +13,9 @@ namespace DARpracticum
 {
     public partial class Form1 : Form
     {
+        // That's our custom TextWriter class
+        TextWriter _writer = null;
+
         Database database;
         MetaDatabase metaDatabase;
 
@@ -20,24 +24,45 @@ namespace DARpracticum
             InitializeComponent();
         }
 
+        public static void WriteLine(String message)
+        {
+            Console.WriteLine(message);
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Instantiate the writer
+            _writer = new TextBoxStreamWriter(txtConsole);
+            // Redirect the out Console stream
+            Console.SetOut(_writer);
+
+            Console.WriteLine("Now redirecting output to the text box");
+        }
+
         private void createButton_Click(object sender, EventArgs e)
         {
-            database = new Database();
+            Program.metaDB.CreateDatabase();
+        }
+    }
+
+    public class TextBoxStreamWriter : TextWriter
+    {
+        TextBox _output = null;
+
+        public TextBoxStreamWriter(TextBox output)
+        {
+            _output = output;
         }
 
-        private void fillButton_Click(object sender, EventArgs e)
+        public override void Write(char value)
         {
-            database.FillDB();
+            base.Write(value);
+            _output.AppendText(value.ToString()); // When character data is written, append it to the text box.
         }
 
-        private void createMetaData_Click(object sender, EventArgs e)
+        public override Encoding Encoding
         {
-            metaDatabase = new MetaDatabase();
-        }
-
-        private void fillMetaDatabase_Click(object sender, EventArgs e)
-        {
-            metaDatabase.FillTables();
+            get { return System.Text.Encoding.UTF8; }
         }
     }
 }
