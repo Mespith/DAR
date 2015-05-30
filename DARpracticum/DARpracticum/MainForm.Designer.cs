@@ -1,6 +1,6 @@
 ﻿namespace DARpracticum
 {
-    partial class Form1
+    partial class MainForm
     {
         /// <summary>
         /// Required designer variable.
@@ -39,6 +39,7 @@
             this.txtConsole.Name = "txtConsole";
             this.txtConsole.Size = new System.Drawing.Size(462, 300);
             this.txtConsole.TabIndex = 4;
+            this.txtConsole.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             // 
             // createButton
             // 

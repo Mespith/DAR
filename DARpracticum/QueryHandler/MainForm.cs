@@ -9,39 +9,41 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace DARpracticum
+namespace QueryHandler
 {
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
         // That's our custom TextWriter class
         TextWriter _writer = null;
+        Handler queryHandler;
 
-        Database database;
-        MetaDatabase metaDatabase;
-
-        public Form1()
+        public MainForm()
         {
             InitializeComponent();
         }
 
-        public static void WriteLine(String message)
-        {
-            Console.WriteLine(message);
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
             // Instantiate the writer
-            _writer = new TextBoxStreamWriter(txtConsole);
+            _writer = new TextBoxStreamWriter(resultBox);
             // Redirect the out Console stream
             Console.SetOut(_writer);
 
-            Console.WriteLine("Now redirecting output to the text box");
+            Console.WriteLine("The results of your query will be shown here.");
+
+            queryHandler = new Handler();
         }
 
-        private void createButton_Click(object sender, EventArgs e)
+        private void inputBox_KeyDown(object sender, KeyEventArgs e)
         {
-            Program.metaDB.CreateDatabase();
+            if(e.KeyCode == Keys.Enter)
+            {
+                // Handle the query.
+                int k = kBox.Text == "" ? 10 : int.Parse(kBox.Text);
+                queryHandler.HandleQuery(inputBox.Text, k);
+                inputBox.Clear();
+                e.Handled = true;
+            }
         }
     }
 

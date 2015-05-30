@@ -19,7 +19,7 @@ namespace DARpracticum
             {
                 Program.dbConnection.Open();
 
-                Form1.WriteLine("Creating the autompg table.");
+                MainForm.WriteLine("Creating the autompg table.");
 
                 String sql = "CREATE TABLE autompg (id integer NOT NULL, mpg real, cylinders integer, displacement real, horsepower real, weight real, acceleration real, model_year integer, origin integer, brand text, model text, type text, PRIMARY KEY (id));";
                 SQLiteCommand command = new SQLiteCommand(sql, Program.dbConnection);
@@ -29,11 +29,11 @@ namespace DARpracticum
                 }
                 catch(Exception e)
                 {
-                    Form1.WriteLine(String.Format("Something went wrong: {0}", e));
+                    MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
                     return false;
                 }
 
-                Form1.WriteLine("Created autompg successfully.");
+                MainForm.WriteLine("Created autompg successfully.");
                 Program.dbConnection.Close();
 
                 return FillDB();
@@ -47,7 +47,7 @@ namespace DARpracticum
             Program.dbConnection.Open();
 
             // Lees het bestand.
-            Form1.WriteLine("Trying to read the db_content.txt...");
+            MainForm.WriteLine("Trying to read the db_content.txt...");
             StreamReader reader;
             try
             {
@@ -55,12 +55,12 @@ namespace DARpracticum
             }
             catch (Exception e)
             {
-                Form1.WriteLine(String.Format("Something went wrong: {0}", e));
+                MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
                 return false;
             }
 
             String line = reader.ReadLine();
-            Form1.WriteLine("Trying to excecute all the INSERT queries from file...");
+            MainForm.WriteLine("Trying to excecute all the INSERT queries from file...");
 
             while(!String.IsNullOrEmpty(line))
             {
@@ -71,14 +71,14 @@ namespace DARpracticum
                 }
                 catch (Exception e)
                 {
-                    Form1.WriteLine(String.Format("Something went wrong: {0}", e));
+                    MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
                     return false;
                 }
 
                 line = reader.ReadLine();
             }
             Program.dbConnection.Close();
-            Form1.WriteLine("Sucessfully inserted all the data.");
+            MainForm.WriteLine("Sucessfully inserted all the data.");
 
             return true;
         }

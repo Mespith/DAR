@@ -38,11 +38,17 @@ namespace DARpracticum
 
         public bool CreateDatabase()
         {
-            Program.autompg.CreateDatabase();
+            if (!Program.autompg.CreateDatabase())
+            {
+                return false;
+            }
 
             if (!exists)
             {
                 Program.dbConnection.Open();
+
+                MainForm.WriteLine("Creating the meta database.");
+                MainForm.WriteLine("Counting how many tuples there are.");
 
                 String query = "SELECT count(*) FROM autompg;";
                 SQLiteCommand command = new SQLiteCommand(query, Program.dbConnection);
@@ -52,11 +58,13 @@ namespace DARpracticum
                     reader.Read();
                     n = (long)reader[0];
                 }
-                catch
+                catch (Exception e)
                 {
+                    MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
                     return false;
                 }
                 Program.dbConnection.Close();
+                MainForm.WriteLine(String.Format("There are {0} tuples in autompg.", n));
 
                 return CreateTables() && FillTables();
             }
@@ -68,6 +76,8 @@ namespace DARpracticum
         {
             Program.metaDbConnection.Open();
             String sql;
+
+            MainForm.WriteLine("Creating all the tables.");
 
             foreach(String table in tables)
             {
@@ -85,14 +95,16 @@ namespace DARpracticum
                 {
                     command.ExecuteNonQuery();
                 }
-                catch
+                catch (Exception e)
                 {
                     // Tables probably already exists.
+                    MainForm.WriteLine(String.Format("Something went wrong while creating table \"{0}\": {1}", table, e));
                     return false;
                 }
             }
-
             Program.metaDbConnection.Close();
+            MainForm.WriteLine("Created all the tables successfully.");
+
             return true;
         }
 
@@ -101,15 +113,22 @@ namespace DARpracticum
             Program.metaDbConnection.Open();
             Program.dbConnection.Open();
 
-            GetQFValues();
+            MainForm.WriteLine("Filling the meta database...");
+
+            if (!GetQFValues())
+            {
+                return false;
+            }
 
             foreach (String table in tables)
             {
+                MainForm.WriteLine(String.Format("Retrieving all the values of attribute {0}.", table));
+
                 String sql = String.Format("SELECT {0} FROM autompg;", table);
                 SQLiteCommand command = new SQLiteCommand(sql, Program.dbConnection);
 
                 Dictionary<string, double> strings = new Dictionary<string, double>();
-                Dictionary<string, Dictionary<double, double>> values = new Dictionary<string, Dictionary<double, double>>();
+                Dictionary<double, double> values = new Dictionary<double, double>();
                 SQLiteDataReader reader;
 
                 try
@@ -129,85 +148,89 @@ namespace DARpracticum
                         }
                         else
                         {
-                            if (!values.ContainsKey(table))
-                                values.Add(table, new Dictionary<double, double>());
                             double d = Convert.ToDouble(reader[0]);
 
-                            if (values[table].ContainsKey(d))
-                                values[table][d]++;
+                            if (values.ContainsKey(d))
+                                values[d]++;
                             else
-                                values[table].Add(d, 1);
-                        }
-                    }
-                }
-                catch
-                {
-                    return false;
-                }
-
-                Dictionary<string, Dictionary<double, double>> newValues = GetIDFValues(values, table);
-
-                command = new SQLiteCommand(sql, Program.dbConnection);
-                try
-                {
-                    reader = command.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        String insert;
-
-                        if (table == "brand" || table == "type" || table == "model")
-                        {
-                            string idf = "'" + Math.Log10(395 / strings[(string)reader[0]]).ToString() + "'";
-                            string qf = "0";
-                            string test = (string)reader[0];
-                            if (qfstrings.ContainsKey(table))
-                                if (qfstrings[table].ContainsKey((string)reader[0]))
-                                    qf = "'" + qfstrings[table][(string)reader[0]].ToString() + "'";
-                            insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, reader[table]);
-                        }
-                        else if (qfvalues.ContainsKey(table))
-                        {
-                            string idf = "'" + newValues[table][(Convert.ToDouble(reader[0]))].ToString() + "'";
-                            string qf = "0";
-                            if (qfvalues[table].ContainsKey(Convert.ToDouble(reader[0])))
-                                qf = "'" + qfvalues[table][Convert.ToDouble(reader[0])].ToString() + "'";
-                            insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, reader[table]);
-                        }
-                        else
-                        {
-                            string idf = "'" + newValues[table][(Convert.ToDouble(reader[0]))].ToString() + "'";
-                            string qf = "0";
-                            insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, reader[table]);
-                        }
-
-
-                        SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
-                        try
-                        {
-                            insertCommand.ExecuteNonQuery();
-                        }
-                        catch
-                        {
-                            // Value is not unique, but we dont care.
+                                values.Add(d, 1);
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    Form1.WriteLine(String.Format("Something went wrong: {0}", e));
+                    MainForm.WriteLine(String.Format("Something went wrong while retrieving table \"{0}\": {1}", table, e));
                     return false;
+                }
+
+                Dictionary<double, double> newValues = GetIDFValues(values);
+
+                MainForm.WriteLine(String.Format("Inserting the QF and IDF values into {0}.", table));
+                String insert;
+
+                foreach (KeyValuePair<double, double> entry in newValues)
+                {
+                    if (qfvalues.ContainsKey(table))
+                    {
+                        string idf = "'" + entry.Value.ToString() + "'";
+                        string qf = "0";
+                        if (qfvalues[table].ContainsKey(entry.Key))
+                            qf = "'" + qfvalues[table][entry.Key].ToString() + "'";
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+                    }
+                    else
+                    {
+                        string idf = "'" + entry.Value.ToString() + "'";
+                        string qf = "0";
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+                    }
+
+                    SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
+                    try
+                    {
+                        insertCommand.ExecuteNonQuery();
+                    }
+                    catch (Exception e)
+                    {
+                        // Value is not unique, but we dont care.
+                        MainForm.WriteLine(String.Format("Something went wrong while inserting into table \"{0}\": {1}", table, e));
+                    }
+                }
+
+                foreach(KeyValuePair<string, double> entry in strings)
+                {
+                    string idf = "'" + Math.Log10(n / entry.Value).ToString() + "'";
+                    string qf = "0";
+                    if (qfstrings.ContainsKey(table))
+                        if (qfstrings[table].ContainsKey(entry.Key))
+                            qf = "'" + qfstrings[table][entry.Key].ToString() + "'";
+                    insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+
+                    SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
+                    try
+                    {
+                        insertCommand.ExecuteNonQuery();
+                    }
+                    catch (Exception e)
+                    {
+                        // Value is not unique, but we dont care.
+                        MainForm.WriteLine(String.Format("Something went wrong while inserting into table \"{0}\": {1}", table, e));
+                    }
                 }
             }
 
             Program.metaDbConnection.Close();
             Program.dbConnection.Close();
 
+            MainForm.WriteLine("Done creating meta database.");
+
             return true;
         }
 
-        private void GetQFValues()
+        private bool GetQFValues()
         {
+            MainForm.WriteLine("Calculating the QF values.");
+
             //for jacuard:
             double[,] brandJac = new double[29, 29];
             double[,] typeJac = new double[6, 6];
@@ -221,8 +244,20 @@ namespace DARpracticum
             qfvalues = new Dictionary<string, Dictionary<double, double>>();
 
             //read workload
-            StreamReader reader = new StreamReader("workload.txt");
+            MainForm.WriteLine("Trying to read the workload.txt file...");
+            StreamReader reader;
+            try
+            {
+                reader = new StreamReader("workload.txt");
+            }
+            catch (Exception e)
+            {
+                MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
+                return false;
+            }
+
             String line = reader.ReadLine();
+            MainForm.WriteLine("Parsing every line of the workload.txt file.");
 
             while (!String.IsNullOrEmpty(line))
             {
@@ -259,7 +294,6 @@ namespace DARpracticum
                     else if ((words[i] == "brand" || words[i] == "type") && words[i + 1] == "IN")
                     {
                         string value = words[i + 1];
-
                     }
                 }
 
@@ -267,6 +301,8 @@ namespace DARpracticum
             }
 
             //calculating qf scores from the occurences
+            MainForm.WriteLine("Calculating the QF scores form the occurences.");
+
             foreach (KeyValuePair<string, Dictionary<string, double>> table in oldqfstrings)
             {
                 qfstrings.Add(table.Key, new Dictionary<string, double>());
@@ -303,49 +339,50 @@ namespace DARpracticum
                 }
             }
 
+            MainForm.WriteLine("Done calculating the QF values.");
+            return true;
         }
 
-        private Dictionary<string, Dictionary<double, double>> GetIDFValues(Dictionary<string, Dictionary<double, double>> values, String table)
+        private Dictionary<double, double> GetIDFValues(Dictionary<double, double> values)
         {
-            Dictionary<string, Dictionary<double, double>> newValues = new Dictionary<string, Dictionary<double, double>>();
             //compute idf.
-            foreach (KeyValuePair<string, Dictionary<double, double>> t in values)
+            MainForm.WriteLine("Computing all the IDF values.");
+            Dictionary<double, double> newValues = new Dictionary<double, double>();
+
+            double total = 0; //for each table the total value (for average and standard deviation)
+            double n = 0;   //the amount of entrys (395)
+
+            foreach (KeyValuePair<double, double> number in values) //get the values
             {
-                newValues.Add(table, new Dictionary<double, double>());
-                double total = 0; //for each table the total value (for average and standard deviation)
-                double n = 0;   //the amount of entrys (395)
-
-                foreach (KeyValuePair<double, double> number in t.Value) //get the values
-                {
-                    total += number.Key * number.Value;
-                    n += number.Value;
-                }
-
-                double average = total / n; //calculate average
-
-                total = 0; //now used for standard deviation
-
-                //get the standard deviation
-                foreach (KeyValuePair<double, double> number in t.Value)
-                {
-                    total += number.Value * Math.Abs(number.Key - average);
-                }
-
-                double standardDev = total / n; //and devide, that fun
-                double h = 1.06 * standardDev * Math.Pow(n, -0.2); //get h
-
-                foreach (KeyValuePair<double, double> number in t.Value)
-                {
-                    double idfValue = 0; //this is the value under de streep we are calculating
-                    foreach (KeyValuePair<double, double> number2 in t.Value)
-                    {
-                        idfValue += Math.Pow(Math.E, -0.5 * Math.Pow((number2.Key - number.Key) / h, 2));
-                    }
-
-                    idfValue = Math.Log10(n / idfValue); //and for the full function
-                    newValues[table].Add(number.Key, idfValue); //and add it to the correct dictionary
-                }
+                total += number.Key * number.Value;
+                n += number.Value;
             }
+
+            double average = total / n; //calculate average
+
+            total = 0; //now used for standard deviation
+
+            //get the standard deviation
+            foreach (KeyValuePair<double, double> number in values)
+            {
+                total += number.Value * Math.Abs(number.Key - average);
+            }
+
+            double standardDev = total / n; //and devide, that fun
+            double h = 1.06 * standardDev * Math.Pow(n, -0.2); //get h
+
+            foreach (KeyValuePair<double, double> number in values)
+            {
+                double idfValue = 0; //this is the value under de streep we are calculating
+                foreach (KeyValuePair<double, double> number2 in values)
+                {
+                    idfValue += Math.Pow(Math.E, -0.5 * Math.Pow((number2.Key - number.Key) / h, 2));
+                }
+
+                idfValue = Math.Log10(n / idfValue); //and for the full function
+                newValues.Add(number.Key, idfValue); //and add it to the correct dictionary
+            }
+            MainForm.WriteLine("Done calculating the IDF values.");
 
             return newValues;
         }

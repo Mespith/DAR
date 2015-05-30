@@ -31,7 +31,7 @@ namespace DARpracticum
             {
                 autompg = new Database(true);
             }
-            dbConnection = new SQLiteConnection("Data Source=database.sqlite;Version=3;");
+            dbConnection = new SQLiteConnection("Data Source=autompg.sqlite;Version=3;");
 
             if (!File.Exists("metaDataDb.sqlite"))
             {
@@ -44,7 +44,7 @@ namespace DARpracticum
             }
             metaDbConnection = new SQLiteConnection("Data Source=metaDataDb.sqlite;Version=3;");
 
-            Application.Run(new Form1());
+            Application.Run(new MainForm());
 
         }
     }
