@@ -34,7 +34,7 @@ namespace QueryHandler
                         if (value.Key == "brand" || value.Key == "type" || value.Key == "model")
                         {
                             // Only calculate similarity if the value corresponds to the query.
-                            if (query[value.Key] == value.Value)
+                            if (query[value.Key].Equals(value.Value.ToString()))
                             {
                                 String selectQuery;
                                 selectQuery = String.Format("SELECT * FROM {0} WHERE waarde = '{1}';", value.Key, value.Value);
@@ -53,7 +53,32 @@ namespace QueryHandler
 
                                 while (reader.Read())
                                 {
-                                    similarity += (double)reader["qfidf"];
+                                    similarity += (double)reader["qf"] * (double)reader["idf"];
+                                }
+                            }
+                            else if (value.Key == "brand" || value.Key == "type")
+                            {
+                                String selectJaccardQuery = String.Format("SELECT * FROM jaccard WHERE waarde1 IN ('{0}',{1}) AND waarde2 IN ('{0}',{1});;", value.Value, query[value.Key]);
+                                String selectQuery = String.Format("SELECT * FROM {0} WHERE waarde = {1};", value.Key, query[value.Key]);
+
+                                SQLiteCommand commandJ = new SQLiteCommand(selectJaccardQuery, Program.metaDbConnection);
+                                SQLiteCommand commandQF = new SQLiteCommand(selectQuery, Program.metaDbConnection);
+                                SQLiteDataReader readerJ;
+                                SQLiteDataReader readerQF;
+
+                                try
+                                {
+                                    readerJ = commandJ.ExecuteReader();
+                                    readerQF = commandQF.ExecuteReader();
+                                }
+                                catch (Exception e)
+                                {
+                                    throw e;
+                                }
+
+                                if (readerJ.Read() && readerQF.Read())
+                                {
+                                    similarity += (double)readerJ["coefficient"] * (double)readerQF["qf"];
                                 }
                             }
                         }
@@ -82,12 +107,12 @@ namespace QueryHandler
                             readerQ.Read();
 
                             double h = Convert.ToDouble(readerT["h"].ToString()) / 100; //get h
-                            double qfidf = Convert.ToDouble(readerQ["qfidf"].ToString()); //this is the value under de streep we are calculating
+                            double idf = Convert.ToDouble(readerQ["idf"].ToString()); //this is the value under de streep we are calculating
                             double t = double.Parse(value.Value.ToString());
                             double q = double.Parse(query[value.Key]);
                             double power = -0.5 * Math.Pow((t - q) / h, 2);
 
-                            similarity += Math.Pow(Math.E, power) * qfidf;
+                            similarity += Math.Pow(Math.E, power) * idf;
                         }
                     }
                 }

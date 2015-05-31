@@ -26,12 +26,12 @@ namespace QueryHandler
             ParseQuery(query);
             ExecuteQuery();
 
-            result.OrderBy(v => v.Similarity);
             if (result.Count < k)
             {
-
+                FillTopK();
             }
 
+            result.OrderBy(v => v.Similarity);
             return result.Take(k).ToList();
         }
 
@@ -126,6 +126,37 @@ namespace QueryHandler
             }
 
             Program.dbConnection.Close();
+        }
+
+        private void FillTopK()
+        {
+            Program.dbConnection.Open();
+
+            String query = "SELECT * FROM autompg;";
+            SQLiteCommand command = new SQLiteCommand(query, Program.dbConnection);
+            SQLiteDataReader reader;
+
+            try
+            {
+                reader = command.ExecuteReader();
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+
+            while (reader.Read())
+            {
+                Auto auto = new Auto();
+
+                foreach (string table in Program.tables)
+                {
+                    auto.values.Add(table, reader[table]);
+                }
+                auto.Calculatesimilarity(conditions);
+
+                result.Add(auto);
+            }
         }
     }
 }

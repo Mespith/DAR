@@ -38,7 +38,7 @@
             // 
             this.inputBox.Location = new System.Drawing.Point(13, 25);
             this.inputBox.Name = "inputBox";
-            this.inputBox.Size = new System.Drawing.Size(259, 20);
+            this.inputBox.Size = new System.Drawing.Size(660, 20);
             this.inputBox.TabIndex = 0;
             this.inputBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputBox_KeyDown);
             // 
@@ -65,15 +65,15 @@
             this.resultBox.Location = new System.Drawing.Point(13, 69);
             this.resultBox.Multiline = true;
             this.resultBox.Name = "resultBox";
-            this.resultBox.Size = new System.Drawing.Size(259, 181);
-            this.resultBox.TabIndex = 3;
             this.resultBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.resultBox.Size = new System.Drawing.Size(660, 181);
+            this.resultBox.TabIndex = 3;
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(284, 262);
+            this.ClientSize = new System.Drawing.Size(685, 262);
             this.Controls.Add(this.resultBox);
             this.Controls.Add(this.resultLabel);
             this.Controls.Add(this.queryLabel);
