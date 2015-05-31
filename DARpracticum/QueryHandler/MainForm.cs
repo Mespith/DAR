@@ -39,8 +39,7 @@ namespace QueryHandler
             if(e.KeyCode == Keys.Enter)
             {
                 // Handle the query.
-                int k = kBox.Text == "" ? 10 : int.Parse(kBox.Text);
-                queryHandler.HandleQuery(inputBox.Text, k);
+                queryHandler.HandleQuery(inputBox.Text);
                 inputBox.Clear();
                 e.Handled = true;
             }

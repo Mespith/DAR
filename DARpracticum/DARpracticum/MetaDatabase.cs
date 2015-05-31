@@ -83,11 +83,11 @@ namespace DARpracticum
             {
                 if (table == "brand" || table == "model" || table == "type")
                 {
-                    sql = String.Format("CREATE TABLE {0} (waarde text UNIQUE, idf real, qf real);", table);
+                    sql = String.Format("CREATE TABLE {0} (waarde text UNIQUE, qfidf real);", table);
                 }
                 else
                 {
-                    sql = String.Format("CREATE TABLE {0} (waarde real UNIQUE, idf real, qf real);", table);
+                    sql = String.Format("CREATE TABLE {0} (waarde real UNIQUE, qfidf real, h real);", table);
                 }
                 
                 SQLiteCommand command = new SQLiteCommand(sql, Program.metaDbConnection);
@@ -163,26 +163,28 @@ namespace DARpracticum
                     return false;
                 }
 
-                Dictionary<double, double> newValues = GetIDFValues(values);
+                double h;
+                Dictionary<double, double> newValues = GetIDFValues(values, out h);
 
                 MainForm.WriteLine(String.Format("Inserting the QF and IDF values into {0}.", table));
                 String insert;
 
+                // Numeric values.
                 foreach (KeyValuePair<double, double> entry in newValues)
                 {
                     if (qfvalues.ContainsKey(table))
                     {
-                        string idf = "'" + entry.Value.ToString() + "'";
-                        string qf = "0";
+                        double qfidf = entry.Value;
+                        //string idf = "'" + entry.Value.ToString() + "'";
+                        //string qf = "0";
                         if (qfvalues[table].ContainsKey(entry.Key))
-                            qf = "'" + qfvalues[table][entry.Key].ToString() + "'";
-                        insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+                            qfidf *= qfvalues[table][entry.Key];
+                            //qf = "'" + qfvalues[table][entry.Key].ToString() + "'";
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}');", table, entry.Key, qfidf, h);
                     }
                     else
                     {
-                        string idf = "'" + entry.Value.ToString() + "'";
-                        string qf = "0";
-                        insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}');", table, entry.Key, entry.Value, h);
                     }
 
                     SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
@@ -197,14 +199,17 @@ namespace DARpracticum
                     }
                 }
 
+                // Categorical values.
                 foreach(KeyValuePair<string, double> entry in strings)
                 {
-                    string idf = "'" + Math.Log10(n / entry.Value).ToString() + "'";
-                    string qf = "0";
+                    double qfidf = entry.Value;
+                    //string idf = "'" + Math.Log10(n / entry.Value).ToString() + "'";
+                    //string qf = "0";
                     if (qfstrings.ContainsKey(table))
                         if (qfstrings[table].ContainsKey(entry.Key))
-                            qf = "'" + qfstrings[table][entry.Key].ToString() + "'";
-                    insert = String.Format("INSERT INTO {0} VALUES ('{1}'," + idf + ", " + qf + ");", table, entry.Key);
+                            qfidf *= qfstrings[table][entry.Key];
+                            //qf = "'" + qfstrings[table][entry.Key].ToString() + "'";
+                    insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}');", table, entry.Key, qfidf);
 
                     SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
                     try
@@ -232,10 +237,10 @@ namespace DARpracticum
             MainForm.WriteLine("Calculating the QF values.");
 
             //for jacuard:
-            double[,] brandJac = new double[29, 29];
-            double[,] typeJac = new double[6, 6];
-            string[] brandNames = new string[29];
-            string[] typeNames = new string[6];
+            double[,] jaccards = new double[35, 35]; //brands and types are stored together
+            Dictionary<string, int> ids = new Dictionary<string, int>(); //to know what stands where
+            int index = 0;
+
 
             // dictionarys for calculating qf scores
             Dictionary<string, Dictionary<string, double>> oldqfstrings = new Dictionary<string, Dictionary<string, double>>();
@@ -244,20 +249,8 @@ namespace DARpracticum
             qfvalues = new Dictionary<string, Dictionary<double, double>>();
 
             //read workload
-            MainForm.WriteLine("Trying to read the workload.txt file...");
-            StreamReader reader;
-            try
-            {
-                reader = new StreamReader("workload.txt");
-            }
-            catch (Exception e)
-            {
-                MainForm.WriteLine(String.Format("Something went wrong: {0}", e));
-                return false;
-            }
-
+            StreamReader reader = new StreamReader("workload.txt");
             String line = reader.ReadLine();
-            MainForm.WriteLine("Parsing every line of the workload.txt file.");
 
             while (!String.IsNullOrEmpty(line))
             {
@@ -278,6 +271,12 @@ namespace DARpracticum
                             oldqfstrings[words[i]][value] += times;
                         else
                             oldqfstrings[words[i]].Add(value, times);
+                        if (!ids.ContainsKey(words[i]))
+                        {
+                            ids.Add(words[i], index);
+                            index++;
+                        }
+
                     }
                     //add numerical values
                     else if (words[i] == "mpg" || words[i] == "cylinders" || words[i] == "displacement" || words[i] == "horsepower" ||
@@ -293,16 +292,37 @@ namespace DARpracticum
                     }
                     else if ((words[i] == "brand" || words[i] == "type") && words[i + 1] == "IN")
                     {
-                        string value = words[i + 1];
+                        string[] values = words[i + 2].Split(',');
+                        foreach (string v in values) //add them normally for normal qf
+                        {
+                            if (!oldqfstrings.ContainsKey(words[i]))
+                                oldqfstrings.Add(words[i], new Dictionary<string, double>());
+                            if (oldqfstrings[words[i]].ContainsKey(v))
+                                oldqfstrings[words[i]][v] += times;
+                            else
+                                oldqfstrings[words[i]].Add(v, times);
+
+                            if (!ids.ContainsKey(v))
+                            {
+                                ids.Add(v, index);
+                                index++;
+                            }
+                        }
+                        //store values in jaccards table, now if want a certain jaccard value: (total of A + total of B + jaccards[a,b])/jaccards[a,b]
+                        //for (int ind = 0; ind < values.Count(); ind++)
+                        //    for (int ind2 = 0; ind2 < values.Count(); ind2++)
+                        //    {
+                        //        jaccards[ids[values[ind]], ids[values[ind2]]] += times;
+                        //    }
                     }
                 }
 
                 line = reader.ReadLine();
             }
 
-            //calculating qf scores from the occurences
-            MainForm.WriteLine("Calculating the QF scores form the occurences.");
+            //TODO: calculate jaccard scores
 
+            //calculating qf scores from the occurences
             foreach (KeyValuePair<string, Dictionary<string, double>> table in oldqfstrings)
             {
                 qfstrings.Add(table.Key, new Dictionary<string, double>());
@@ -317,7 +337,7 @@ namespace DARpracticum
                 foreach (KeyValuePair<string, double> number in table.Value)
                 {
                     double x = number.Value;
-                    qfstrings[table.Key].Add(number.Key, x / max);
+                    qfstrings[table.Key].Add(number.Key, x + 1 / max + 1);
                 }
             }
 
@@ -335,7 +355,7 @@ namespace DARpracticum
                 foreach (KeyValuePair<double, double> number in table.Value)
                 {
                     double x = number.Value;
-                    qfvalues[table.Key].Add(number.Key, x / max);
+                    qfvalues[table.Key].Add(number.Key, x + 1 / max + 1);
                 }
             }
 
@@ -343,10 +363,10 @@ namespace DARpracticum
             return true;
         }
 
-        private Dictionary<double, double> GetIDFValues(Dictionary<double, double> values)
+        private Dictionary<double, double> GetIDFValues(Dictionary<double, double> values, out double h)
         {
             //compute idf.
-            MainForm.WriteLine("Computing all the IDF values.");
+            MainForm.WriteLine("Computing the IDF values of numerical data.");
             Dictionary<double, double> newValues = new Dictionary<double, double>();
 
             double total = 0; //for each table the total value (for average and standard deviation)
@@ -369,7 +389,7 @@ namespace DARpracticum
             }
 
             double standardDev = total / n; //and devide, that fun
-            double h = 1.06 * standardDev * Math.Pow(n, -0.2); //get h
+            h = 1.06 * standardDev * Math.Pow(n, -0.2); //get h
 
             foreach (KeyValuePair<double, double> number in values)
             {
@@ -382,6 +402,7 @@ namespace DARpracticum
                 idfValue = Math.Log10(n / idfValue); //and for the full function
                 newValues.Add(number.Key, idfValue); //and add it to the correct dictionary
             }
+            h *= 100;
             MainForm.WriteLine("Done calculating the IDF values.");
 
             return newValues;

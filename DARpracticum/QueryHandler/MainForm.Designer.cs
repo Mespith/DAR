@@ -32,15 +32,13 @@
             this.queryLabel = new System.Windows.Forms.Label();
             this.resultLabel = new System.Windows.Forms.Label();
             this.resultBox = new System.Windows.Forms.TextBox();
-            this.kBox = new System.Windows.Forms.TextBox();
-            this.kLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // inputBox
             // 
             this.inputBox.Location = new System.Drawing.Point(13, 25);
             this.inputBox.Name = "inputBox";
-            this.inputBox.Size = new System.Drawing.Size(206, 20);
+            this.inputBox.Size = new System.Drawing.Size(259, 20);
             this.inputBox.TabIndex = 0;
             this.inputBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputBox_KeyDown);
             // 
@@ -70,29 +68,11 @@
             this.resultBox.Size = new System.Drawing.Size(259, 181);
             this.resultBox.TabIndex = 3;
             // 
-            // kBox
-            // 
-            this.kBox.Location = new System.Drawing.Point(225, 24);
-            this.kBox.Name = "kBox";
-            this.kBox.Size = new System.Drawing.Size(46, 20);
-            this.kBox.TabIndex = 4;
-            // 
-            // kLabel
-            // 
-            this.kLabel.AutoSize = true;
-            this.kLabel.Location = new System.Drawing.Point(225, 5);
-            this.kLabel.Name = "kLabel";
-            this.kLabel.Size = new System.Drawing.Size(38, 13);
-            this.kLabel.TabIndex = 5;
-            this.kLabel.Text = "Top-k:";
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(284, 262);
-            this.Controls.Add(this.kLabel);
-            this.Controls.Add(this.kBox);
             this.Controls.Add(this.resultBox);
             this.Controls.Add(this.resultLabel);
             this.Controls.Add(this.queryLabel);
@@ -111,8 +91,6 @@
         private System.Windows.Forms.Label queryLabel;
         private System.Windows.Forms.Label resultLabel;
         private System.Windows.Forms.TextBox resultBox;
-        private System.Windows.Forms.TextBox kBox;
-        private System.Windows.Forms.Label kLabel;
     }
 }
 
