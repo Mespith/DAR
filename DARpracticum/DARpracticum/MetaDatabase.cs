@@ -12,7 +12,7 @@ namespace DARpracticum
     {
         Dictionary<string, Dictionary<string, double>> qfstrings = new Dictionary<string, Dictionary<string, double>>();
         Dictionary<string, Dictionary<double, double>> qfvalues = new Dictionary<string, Dictionary<double, double>>();
-        Dictionary<string, Dictionary<Tuple<string, string>, double>> jaccard = new Dictionary<string, Dictionary<Tuple<string, string>, double>>();
+        Dictionary<Tuple<string, string>, double> jaccard = new Dictionary<Tuple<string, string>, double>();
 
         String[] tables = new String[]
         {
@@ -77,6 +77,7 @@ namespace DARpracticum
         {
             Program.metaDbConnection.Open();
             String sql;
+            SQLiteCommand command;
 
             MainForm.WriteLine("Creating all the tables.");
 
@@ -84,14 +85,14 @@ namespace DARpracticum
             {
                 if (table == "brand" || table == "model" || table == "type")
                 {
-                    sql = String.Format("CREATE TABLE {0} (waarde text UNIQUE, qfidf real);", table);
+                    sql = String.Format("CREATE TABLE {0} (waarde text UNIQUE, qf real, idf real);", table);
                 }
                 else
                 {
-                    sql = String.Format("CREATE TABLE {0} (waarde real UNIQUE, qfidf real, h real);", table);
+                    sql = String.Format("CREATE TABLE {0} (waarde real UNIQUE, qf real, idf real, h real);", table);
                 }
                 
-                SQLiteCommand command = new SQLiteCommand(sql, Program.metaDbConnection);
+                command = new SQLiteCommand(sql, Program.metaDbConnection);
                 try
                 {
                     command.ExecuteNonQuery();
@@ -103,6 +104,21 @@ namespace DARpracticum
                     return false;
                 }
             }
+
+            sql = "CREATE TABLE jaccard (waarde1 text, waarde2 text, coefficient real);";
+            command = new SQLiteCommand(sql, Program.metaDbConnection);
+
+            try
+            {
+                command.ExecuteNonQuery();
+            }
+            catch (Exception e)
+            {
+                // Tables probably already exists.
+                MainForm.WriteLine(String.Format("Something went wrong while creating table \"Jaccard\": {1}", e));
+                return false;
+            }
+
             Program.metaDbConnection.Close();
             MainForm.WriteLine("Created all the tables successfully.");
 
@@ -175,17 +191,19 @@ namespace DARpracticum
                 {
                     if (qfvalues.ContainsKey(table))
                     {
-                        double qfidf = entry.Value;
-                        //string idf = "'" + entry.Value.ToString() + "'";
-                        //string qf = "0";
+                        double idf = entry.Value;
+                        double qf = 0;
+
                         if (qfvalues[table].ContainsKey(entry.Key))
-                            qfidf *= qfvalues[table][entry.Key];
-                            //qf = "'" + qfvalues[table][entry.Key].ToString() + "'";
-                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}');", table, entry.Key, qfidf, h);
+                            qf = qfvalues[table][entry.Key];
+
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}','{4}');", table, entry.Key, qf, idf, h);
                     }
                     else
                     {
-                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}');", table, entry.Key, entry.Value, h);
+                        double idf = entry.Value;
+                        double qf = 0;
+                        insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}','{4}');", table, entry.Key, qf, idf, h);
                     }
 
                     SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
@@ -203,14 +221,14 @@ namespace DARpracticum
                 // Categorical values.
                 foreach(KeyValuePair<string, double> entry in strings)
                 {
-                    double qfidf = entry.Value;
-                    //string idf = "'" + Math.Log10(n / entry.Value).ToString() + "'";
-                    //string qf = "0";
+                    double idf = entry.Value;
+                    double qf = 0;
+
                     if (qfstrings.ContainsKey(table))
                         if (qfstrings[table].ContainsKey(entry.Key))
-                            qfidf *= qfstrings[table][entry.Key];
-                            //qf = "'" + qfstrings[table][entry.Key].ToString() + "'";
-                    insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}');", table, entry.Key, qfidf);
+                            qf = qfstrings[table][entry.Key];
+
+                    insert = String.Format("INSERT INTO {0} VALUES ('{1}','{2}','{3}');", table, entry.Key, qf, idf);
 
                     SQLiteCommand insertCommand = new SQLiteCommand(insert, Program.metaDbConnection);
                     try
@@ -222,6 +240,23 @@ namespace DARpracticum
                         // Value is not unique, but we dont care.
                         MainForm.WriteLine(String.Format("Something went wrong while inserting into table \"{0}\": {1}", table, e));
                     }
+                }
+            }
+
+            MainForm.WriteLine("Inserting the Jaccard Coefficients.");
+
+            foreach(KeyValuePair<Tuple<string,string>,double> jaccardCoefficient in jaccard)
+            {
+                String query = String.Format("INSERT INTO jaccard VALUES ('{0}','{1}','{2}');", jaccardCoefficient.Key.Item1, jaccardCoefficient.Key.Item2, jaccardCoefficient.Value);
+                SQLiteCommand command = new SQLiteCommand(query, Program.metaDbConnection);
+                try
+                {
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception e)
+                {
+                    // Value is not unique, but we dont care.
+                    MainForm.WriteLine(String.Format("Something went wrong while inserting into table \"Jaccard\": {1}", e));
                 }
             }
 
@@ -238,8 +273,9 @@ namespace DARpracticum
             MainForm.WriteLine("Calculating the QF values.");
 
             //for jacuard:
-            List<String> inCollections = new List<string>();
-            double[,] jaccards = new double[35, 35]; //brands and types are stored together
+            Dictionary<String, double> jaccardOccurences = new Dictionary<string, double>();
+            Dictionary<String, double> INOccurences = new Dictionary<string, double>();
+
             Dictionary<string, int> ids = new Dictionary<string, int>(); //to know what stands where
             int index = 0;
 
@@ -294,7 +330,15 @@ namespace DARpracticum
                     }
                     else if ((words[i] == "brand" || words[i] == "type") && words[i + 1] == "IN")
                     {
-                        string[] values = words[i + 2].Split(',');
+                        String INstatement = words[i + 2];
+
+                        List<char> result = INstatement.ToList();
+                        result.RemoveAll(c => c == '(' || c == ')');
+                        INstatement = new string(result.ToArray());
+
+                        string[] values = INstatement.Split(',');
+                        Array.Sort(values);
+
                         foreach (string v in values) //add them normally for normal qf
                         {
                             if (!oldqfstrings.ContainsKey(words[i]))
@@ -311,15 +355,40 @@ namespace DARpracticum
                             }
                         }
 
-                        inCollections.Add(words[i + 2]);
+                        // Safe how many times a combination occurs in a IN statement, and also how much any value occurs.
+                        for (int s = 0; s < values.Length; s++)
+                        {
+                            String first = values[s];
+                            for (int t = s + 1; t < values.Length; t++)
+                            {
+                                String second = values[t];
+                                String combination = String.Format("{0}&{1}", first, second);
+                                if (jaccardOccurences.ContainsKey(combination))
+                                {
+                                    jaccardOccurences[combination] += times;
+                                }
+                                else
+                                {
+                                    jaccardOccurences.Add(combination, times);
+                                }
+                            }
+                            if (INOccurences.ContainsKey(first))
+                            {
+                                INOccurences[first] += times;
+                            }
+                            else
+                            {
+                                INOccurences.Add(first, times);
+                            }
+                        }
                     }
                 }
 
                 line = reader.ReadLine();
             }
 
-            //TODO: calculate jaccard scores
-
+            // calculate jaccard scores
+            JaccardCoefficient(jaccardOccurences, INOccurences);
 
             //calculating qf scores from the occurences
             foreach (KeyValuePair<string, Dictionary<string, double>> table in oldqfstrings)
@@ -407,21 +476,17 @@ namespace DARpracticum
             return newValues;
         }
 
-        private void JaccardCoefficient(Dictionary<String, String> collections)
+        private void JaccardCoefficient(Dictionary<String, double> jaccardOccurences, Dictionary<String, double> INOccurences)
         {
-            foreach(KeyValuePair<String, String> collection in collections)
+            foreach(KeyValuePair<String, double> jaccardOccurence in jaccardOccurences)
             {
-                if (!jaccard.ContainsKey(collection.Key))
-                {
-                    jaccard.Add(collection.Key, new Dictionary<Tuple<String, String>, double>());
-                }
+                String[] values = jaccardOccurence.Key.Split('&');
+                double totalOccurence1 = INOccurences[values[0]];
+                double totalOccurence2 = INOccurences[values[1]];
 
-                string[] values = collection.Value.Split(',');
-                for (int i = 0; i < values.Length; i++)
-                {
-                    jaccard[collection.Key].Add(Tuple.Create(values[i], values[i + 1]), 0);
-                    jaccard[collection.Key].Add(Tuple.Create(values[i], values[i + 2]), 0);
-                }
+                double coefficient = jaccardOccurence.Value / (totalOccurence1 + totalOccurence2);
+
+                jaccard.Add(Tuple.Create(values[0], values[1]), coefficient);
             }
         }
     }
