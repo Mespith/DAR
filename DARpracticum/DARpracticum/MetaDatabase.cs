@@ -12,6 +12,7 @@ namespace DARpracticum
     {
         Dictionary<string, Dictionary<string, double>> qfstrings = new Dictionary<string, Dictionary<string, double>>();
         Dictionary<string, Dictionary<double, double>> qfvalues = new Dictionary<string, Dictionary<double, double>>();
+        Dictionary<string, Dictionary<Tuple<string, string>, double>> jaccard = new Dictionary<string, Dictionary<Tuple<string, string>, double>>();
 
         String[] tables = new String[]
         {
@@ -237,6 +238,7 @@ namespace DARpracticum
             MainForm.WriteLine("Calculating the QF values.");
 
             //for jacuard:
+            List<String> inCollections = new List<string>();
             double[,] jaccards = new double[35, 35]; //brands and types are stored together
             Dictionary<string, int> ids = new Dictionary<string, int>(); //to know what stands where
             int index = 0;
@@ -308,12 +310,8 @@ namespace DARpracticum
                                 index++;
                             }
                         }
-                        //store values in jaccards table, now if want a certain jaccard value: (total of A + total of B + jaccards[a,b])/jaccards[a,b]
-                        //for (int ind = 0; ind < values.Count(); ind++)
-                        //    for (int ind2 = 0; ind2 < values.Count(); ind2++)
-                        //    {
-                        //        jaccards[ids[values[ind]], ids[values[ind2]]] += times;
-                        //    }
+
+                        inCollections.Add(words[i + 2]);
                     }
                 }
 
@@ -321,6 +319,7 @@ namespace DARpracticum
             }
 
             //TODO: calculate jaccard scores
+
 
             //calculating qf scores from the occurences
             foreach (KeyValuePair<string, Dictionary<string, double>> table in oldqfstrings)
@@ -406,6 +405,24 @@ namespace DARpracticum
             MainForm.WriteLine("Done calculating the IDF values.");
 
             return newValues;
+        }
+
+        private void JaccardCoefficient(Dictionary<String, String> collections)
+        {
+            foreach(KeyValuePair<String, String> collection in collections)
+            {
+                if (!jaccard.ContainsKey(collection.Key))
+                {
+                    jaccard.Add(collection.Key, new Dictionary<Tuple<String, String>, double>());
+                }
+
+                string[] values = collection.Value.Split(',');
+                for (int i = 0; i < values.Length; i++)
+                {
+                    jaccard[collection.Key].Add(Tuple.Create(values[i], values[i + 1]), 0);
+                    jaccard[collection.Key].Add(Tuple.Create(values[i], values[i + 2]), 0);
+                }
+            }
         }
     }
 }

@@ -39,7 +39,13 @@ namespace QueryHandler
             if(e.KeyCode == Keys.Enter)
             {
                 // Handle the query.
-                queryHandler.HandleQuery(inputBox.Text);
+                List<Auto> results = queryHandler.HandleQuery(inputBox.Text);
+
+                for (int i = 0; i < results.Count; i++)
+                {
+                    Console.WriteLine(String.Format("{0}. {1}.", i + 1, results[i].ToString()));
+                }
+
                 inputBox.Clear();
                 e.Handled = true;
             }

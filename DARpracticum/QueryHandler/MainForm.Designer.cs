@@ -67,6 +67,7 @@
             this.resultBox.Name = "resultBox";
             this.resultBox.Size = new System.Drawing.Size(259, 181);
             this.resultBox.TabIndex = 3;
+            this.resultBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             // 
             // MainForm
             // 

@@ -95,5 +95,16 @@ namespace QueryHandler
                 Program.metaDbConnection.Close();
             }
         }
+
+        public override string ToString()
+        {
+            String result = "Car: ";
+            foreach(KeyValuePair<string, object> value in values)
+            {
+                result = String.Format("{0} {1}: {2}; ", result, value.Key, value.Value);
+            }
+
+            return result;
+        }
     }
 }

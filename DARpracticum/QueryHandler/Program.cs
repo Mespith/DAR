@@ -33,8 +33,8 @@ namespace QueryHandler
         [STAThread]
         static void Main()
         {
-            dbConnection = new SQLiteConnection("Data Source=D:/Jaimy/Documents/Universiteit Utrecht/UUvakken/Data-analyse/DAR/DARpracticum/DARpracticum/bin/Debug/autompg.sqlite;Version=3;");
-            metaDbConnection = new SQLiteConnection("Data Source=D:/Jaimy/Documents/Universiteit Utrecht/UUvakken/Data-analyse/DAR/DARpracticum/DARpracticum/bin/Debug/metaDataDb.sqlite;Version=3;");
+            dbConnection = new SQLiteConnection("Data Source=autompg.sqlite;Version=3;");
+            metaDbConnection = new SQLiteConnection("Data Source=metaDataDb.sqlite;Version=3;");
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

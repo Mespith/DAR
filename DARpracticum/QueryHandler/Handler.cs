@@ -26,12 +26,12 @@ namespace QueryHandler
             ParseQuery(query);
             ExecuteQuery();
 
+            result.OrderBy(v => v.Similarity);
             if (result.Count < k)
             {
 
             }
 
-            result.OrderBy(v => v.Similarity);
             return result.Take(k).ToList();
         }
 
@@ -67,15 +67,36 @@ namespace QueryHandler
             {
                 if (count == 0)
                 {
-                    query = String.Format("{0} {1} = {2}", query, condition.Key, condition.Value);
+                    if (condition.Key == "type" || condition.Key == "model" || condition.Key == "brand")
+                    {
+                        query = String.Format("{0} {1} = {2}", query, condition.Key, condition.Value);
+                    }
+                    else
+                    {
+                        query = String.Format("{0} {1} = '{2}'", query, condition.Key, condition.Value);
+                    }
                 }
                 else if (count == conditions.Count - 1)
                 {
-                    query = String.Format("{0} AND {1} = {2};", query, condition.Key, condition.Value);
+                    if (condition.Key == "type" || condition.Key == "model" || condition.Key == "brand")
+                    {
+                        query = String.Format("{0} AND {1} = {2};", query, condition.Key, condition.Value);
+                    }
+                    else
+                    {
+                        query = String.Format("{0} AND {1} = '{2}';", query, condition.Key, condition.Value);
+                    }
                 }
                 else
                 {
-                    query = String.Format("{0} AND {1} = {2}", query, condition.Key, condition.Value);
+                    if (condition.Key == "type" || condition.Key == "model" || condition.Key == "brand")
+                    {
+                        query = String.Format("{0} AND {1} = {2}", query, condition.Key, condition.Value);
+                    }
+                    else
+                    {
+                        query = String.Format("{0} AND {1} = '{2}'", query, condition.Key, condition.Value);
+                    }
                 }
                 count++;
             }
